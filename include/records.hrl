@@ -47,4 +47,11 @@
         item_user :: binary()
 }).
 
-
+-record(slack_rtm_reaction_removed, {
+        user :: binary(),
+        ts :: binary(),
+        event_ts :: binary(),
+        reaction :: binary(),
+        item :: #slack_rtm_item{},
+        item_user :: binary()
+}).

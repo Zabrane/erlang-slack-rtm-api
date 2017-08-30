@@ -154,7 +154,7 @@ handle_slack_ws_message(State, {text, Json}) ->
     end.
 
 parse_slack_item(Payload) ->
-    parse_slack_item(proplists:get(<<"type">>, Payload), Payload).
+    parse_slack_item(proplists:get_value(<<"type">>, Payload), Payload).
 parse_slack_item(<<"message">>, Payload) ->
     #slack_rtm_item{
        type=message,
@@ -216,6 +216,15 @@ parse_slack_payload(<<"user_typing">>, Payload) ->
     };
 parse_slack_payload(<<"reaction_added">>, Payload) ->
     #slack_rtm_reaction_added{
+        user=proplists:get_value(<<"user">>, Payload),
+        ts=proplists:get_value(<<"ts">>, Payload),
+        event_ts=proplists:get_value(<<"event_ts">>, Payload),
+        reaction=proplists:get_value(<<"reaction">>, Payload),
+        item_user=proplists:get_value(<<"item_user">>, Payload),
+        item=parse_slack_item(proplists:get_value(<<"item">>, Payload))
+    };
+parse_slack_payload(<<"reaction_removed">>, Payload) ->
+    #slack_rtm_reaction_removed{
         user=proplists:get_value(<<"user">>, Payload),
         ts=proplists:get_value(<<"ts">>, Payload),
         event_ts=proplists:get_value(<<"event_ts">>, Payload),
