@@ -20,8 +20,8 @@ start_link() ->
 
 init([]) ->
 	Procs = [{
-      slack_rtm_client_sup,
-      {slack_rtm_client_sup, start_link, []},
-      transient, 5000, supervisor, [slack_rtm_client_sup]
+      slack_rtm_client,
+      {slack_rtm_client, start_link, []},
+      temporary, 5000, worker, [slack_rtm_client]
     }],
 	{ok, {{simple_one_for_one, 10, 10}, Procs}}.

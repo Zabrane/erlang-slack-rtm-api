@@ -10,7 +10,7 @@
 -define(MAX_RECONNECT_COOLDOWN, 60000).
 
 %% Supervisor callback
--export([start_link/1]).
+-export([start_link/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -27,9 +27,8 @@
     gun :: any()
 }).
 
-
-start_link(SlackToken) ->
-    gen_server:start_link(?MODULE, [self(), SlackToken], []).
+start_link(Callback, SlackToken) ->
+    gen_server:start_link(?MODULE, [Callback, SlackToken], []).
 
 % Gen server callbacks
 
