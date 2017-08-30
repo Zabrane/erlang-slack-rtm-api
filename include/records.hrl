@@ -4,13 +4,30 @@
           presence :: atom() | binary()
 }).
 
+-record(slack_rtm_message_attachment_field, {
+        title :: binary(),
+        value :: binary(),
+        short :: boolean()
+}).
+
+-record(slack_rtm_message_attachment, {
+        fallback :: binary(),
+        id :: pos_integer(),
+        color :: binary(),
+        fields :: [#slack_rtm_message_attachment_field{}],
+        mrkdwn_in :: [binary()]
+}).
+
 -record(slack_rtm_message, {
         channel :: binary(),
         user :: binary(),
         text :: binary(),
         ts :: binary(),
         source_team :: binary(),
-        team :: binary()
+        team :: binary(),
+        subtype :: binary(),
+        bot_id :: binary(),
+        attachments :: [#slack_rtm_message_attachment{}]
 }).
 
 -record(slack_rtm_channel_marked, {

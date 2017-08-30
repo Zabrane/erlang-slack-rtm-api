@@ -185,6 +185,25 @@ parse_slack_item(<<"file_comment">>, Payload) ->
        file_comment=proplists:get_value(<<"file_comment">>, Payload)
     }.
 
+parse_slack_message_attachment(Payload) ->
+    #slack_rtm_message_attachment{
+        id=proplists:get_value(<<"id">>, Payload),
+        fallback=proplists:get_value(<<"fallback">>, Payload),
+        color=proplists:get_value(<<"color">>, Payload),
+        mrkdwn_in=proplists:get_value(<<"mrkdwn_in">>, Payload),
+        fields=[
+            parse_slack_message_attachment_field(F) ||
+            F <- proplists:get_value(<<"fields">>, Payload, [])
+        ]
+    }.
+
+parse_slack_message_attachment_field(Payload) ->
+    #slack_rtm_message_attachment_field{
+        title=proplists:get_value(<<"title">>, Payload),
+        value=proplists:get_value(<<"value">>, Payload),
+        short=proplists:get_value(<<"short">>, Payload)
+    }.
+
 parse_slack_payload(<<"reconnect_url">>, _Payload) ->
     undefined;
 parse_slack_payload(<<"hello">>, _Payload) ->
@@ -206,7 +225,13 @@ parse_slack_payload(<<"message">>, Payload) ->
         text=proplists:get_value(<<"text">>, Payload),
         ts=proplists:get_value(<<"ts">>, Payload),
         source_team=proplists:get_value(<<"source_team">>, Payload),
-        team=proplists:get_value(<<"team">>, Payload)
+        team=proplists:get_value(<<"team">>, Payload),
+        subtype=proplists:get_value(<<"subtype">>, Payload),
+        bot_id=proplists:get_value(<<"bot_id">>, Payload),
+        attachments=[
+            parse_slack_message_attachment(A) ||
+            A <- proplists:get_value(<<"attachments">>, Payload, [])
+        ]
     };
 parse_slack_payload(<<"channel_marked">>, Payload) ->
     #slack_rtm_channel_marked{
