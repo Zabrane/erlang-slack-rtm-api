@@ -89,3 +89,49 @@
           event_ts :: binary()
 }).
 
+-record(slack_rtm_subscription, {
+          type :: 'thread',
+          channel :: binary(),
+          thread_ts :: binary(),
+          date_create :: binary(),
+          active :: boolean(),
+          last_read :: binary(),
+          unread_count :: pos_integer()
+}).
+
+-record(slack_rtm_thread_marked, {
+          event_ts :: binary(),
+          subscription :: #slack_rtm_subscription{}
+}).
+
+-record(slack_rtm_desktop_notification, {
+          title :: binary(),
+          subtitle :: binary(),
+          msg :: binary(),
+          content :: binary(),
+          channel :: binary(),
+          launch_uri :: binary(),
+          avatar_image :: binary(),
+          ssb_filename :: binary(),
+          image_uri :: binary(),
+          is_shared :: boolean(),
+          event_ts :: boolean()
+}).
+
+-record(slack_rtm_member_joined_channel, {
+          user :: binary(),
+          channel :: binary(),
+          channel_type :: binary(),
+          event_ts :: binary(),
+          ts :: binary()
+}).
+
+-record(slack_rtm_im_marked, {
+          channel :: binary(),
+          ts :: binary(),
+          event_ts :: binary(),
+          dm_count :: pos_integer(),
+          unread_count_display :: pos_integer(),
+          num_mentions_display :: pos_integer(),
+          mention_count_display :: pos_integer()
+}).

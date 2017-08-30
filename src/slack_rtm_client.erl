@@ -203,6 +203,19 @@ parse_slack_message_attachment_field(Payload) ->
         short=proplists:get_value(<<"short">>, Payload)
     }.
 
+parse_slack_subscription(Payload) ->
+    parse_slack_subscription(proplists:get_value(<<"type">>, Payload), Payload).
+parse_slack_subscription(<<"thread">>, Payload) ->
+    #slack_rtm_subscription{
+        type=thread,
+        channel=proplists:get_value(<<"channel">>, Payload),
+        thread_ts=proplists:get_value(<<"thread_ts">>, Payload),
+        date_create=proplists:get_value(<<"date_create">>, Payload),
+        active=proplists:get_value(<<"active">>, Payload),
+        last_read=proplists:get_value(<<"last_read">>, Payload),
+        unread_count=proplists:get_value(<<"unread_count">>, Payload)
+    }.
+
 parse_slack_payload(<<"reconnect_url">>, _Payload) ->
     undefined;
 parse_slack_payload(<<"hello">>, _Payload) ->
@@ -271,6 +284,44 @@ parse_slack_payload(<<"channel_created">>, Payload) ->
     #slack_rtm_channel_created{
         channel=parse_slack_channel(proplists:get_value(<<"channel">>, Payload)),
         event_ts=proplists:get_value(<<"event_ts">>, Payload)
+    };
+parse_slack_payload(<<"thread_marked">>, Payload) ->
+    #slack_rtm_thread_marked{
+        event_ts=proplists:get_value(<<"event_ts">>, Payload),
+        subscription=parse_slack_subscription(proplists:get_value(<<"subscription">>, Payload))
+    };
+parse_slack_payload(<<"desktop_notification">>, Payload) ->
+    #slack_rtm_desktop_notification{
+        title=proplists:get_value(<<"title">>, Payload),
+        subtitle=proplists:get_value(<<"subtitle">>, Payload),
+        msg=proplists:get_value(<<"msg">>, Payload),
+        event_ts=proplists:get_value(<<"event_ts">>, Payload),
+        content=proplists:get_value(<<"content">>, Payload),
+        channel=proplists:get_value(<<"channel">>, Payload),
+        launch_uri=proplists:get_value(<<"launchUri">>, Payload),
+        avatar_image=proplists:get_value(<<"avatarImage">>, Payload),
+        ssb_filename=proplists:get_value(<<"ssbFilename">>, Payload),
+        image_uri=proplists:get_value(<<"imageUri">>, Payload),
+        is_shared=proplists:get_value(<<"is_shared">>, Payload)
+    };
+parse_slack_payload(<<"member_joined_channel">>, Payload) ->
+    #slack_rtm_member_joined_channel{
+        user=proplists:get_value(<<"user">>, Payload),
+        channel=proplists:get_value(<<"channel">>, Payload),
+        channel_type=proplists:get_value(<<"channel_type">>, Payload),
+        ts=proplists:get_value(<<"ts">>, Payload),
+        event_ts=proplists:get_value(<<"event_ts">>, Payload)
+    };
+
+parse_slack_payload(<<"im_marked">>, Payload) ->
+    #slack_rtm_im_marked{
+        channel=proplists:get_value(<<"channel">>, Payload),
+        ts=proplists:get_value(<<"ts">>, Payload),
+        event_ts=proplists:get_value(<<"event_ts">>, Payload),
+        dm_count=proplists:get_value(<<"dm_count">>, Payload),
+        unread_count_display=proplists:get_value(<<"unread_count_display">>, Payload),
+        num_mentions_display=proplists:get_value(<<"num_mentions_display">>, Payload),
+        mention_count_display=proplists:get_value(<<"mention_count_display">>, Payload)
     };
 parse_slack_payload(Type, Payload) ->
     lager:info("Ignoring payload type ~p: ~p ~n", [Type, Payload]),
