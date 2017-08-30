@@ -1,0 +1,16 @@
+{application, slack_rtm,
+ [
+  {description, "Slack Real Time Messaging Client"},
+  {vsn, "0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  sasl,
+                  jsx,
+                  gun,
+                  lager
+                 ]},
+  {mod, { slack_rtm_app, []}},
+  {env, []}
+ ]}.
