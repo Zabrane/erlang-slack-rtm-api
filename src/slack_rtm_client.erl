@@ -153,6 +153,18 @@ handle_slack_ws_message(State, {text, Json}) ->
             State#state.callback ! {slack_msg, self(), SlackRecord}
     end.
 
+parse_slack_channel(Payload) ->
+    #slack_rtm_channel{
+          id=proplists:get_value(<<"id">>, Payload),
+          is_channel=proplists:get_value(<<"is_channel">>, Payload),
+          name=proplists:get_value(<<"name">>, Payload),
+          name_normalized=proplists:get_value(<<"name_normalized">>, Payload),
+          created=proplists:get_value(<<"created">>, Payload),
+          creator=proplists:get_value(<<"creator">>, Payload),
+          is_shared=proplists:get_value(<<"is_shared">>, Payload),
+          is_org_shared=proplists:get_value(<<"is_org_shared">>, Payload)
+      }.
+
 parse_slack_item(Payload) ->
     parse_slack_item(proplists:get_value(<<"type">>, Payload), Payload).
 parse_slack_item(<<"message">>, Payload) ->
@@ -188,7 +200,6 @@ parse_slack_payload(<<"presence_change">>, Payload) ->
         presence=Presence
     };
 parse_slack_payload(<<"message">>, Payload) ->
-    lager:info("Message: ~p~n", [Payload]),
     #slack_rtm_message{
         user=proplists:get_value(<<"user">>, Payload),
         channel=proplists:get_value(<<"channel">>, Payload),
@@ -231,6 +242,11 @@ parse_slack_payload(<<"reaction_removed">>, Payload) ->
         reaction=proplists:get_value(<<"reaction">>, Payload),
         item_user=proplists:get_value(<<"item_user">>, Payload),
         item=parse_slack_item(proplists:get_value(<<"item">>, Payload))
+    };
+parse_slack_payload(<<"channel_created">>, Payload) ->
+    #slack_rtm_channel_created{
+        channel=parse_slack_channel(proplists:get_value(<<"channel">>, Payload)),
+        event_ts=proplists:get_value(<<"event_ts">>, Payload)
     };
 parse_slack_payload(Type, Payload) ->
     lager:info("Ignoring payload type ~p: ~p ~n", [Type, Payload]),

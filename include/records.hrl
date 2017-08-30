@@ -55,3 +55,20 @@
         item :: #slack_rtm_item{},
         item_user :: binary()
 }).
+
+-record(slack_rtm_channel, {
+          id :: binary(),
+          is_channel :: boolean(),
+          name :: binary(),
+          name_normalized :: binary(),
+          created :: pos_integer(),
+          creator :: binary(),
+          is_shared :: boolean(),
+          is_org_shared :: boolean()
+}).
+
+-record(slack_rtm_channel_created, {
+          channel :: #slack_rtm_channel{},
+          event_ts :: binary()
+}).
+
