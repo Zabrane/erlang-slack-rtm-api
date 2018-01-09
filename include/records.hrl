@@ -23,11 +23,15 @@
         user :: binary(),
         text :: binary(),
         ts :: binary(),
+        event_ts :: binary(),
         source_team :: binary(),
         team :: binary(),
         subtype :: binary(),
         bot_id :: binary(),
-        attachments :: [#slack_rtm_message_attachment{}]
+        attachments :: [#slack_rtm_message_attachment{}],
+        hidden :: boolean(),
+        message :: #slack_rtm_message{},
+        previous_message :: #slack_rtm_message{}
 }).
 
 -record(slack_rtm_channel_marked, {
@@ -134,4 +138,59 @@
           unread_count_display :: pos_integer(),
           num_mentions_display :: pos_integer(),
           mention_count_display :: pos_integer()
+}).
+
+-record(slack_rtm_user_profile, {
+          first_name :: binary(),
+          last_name :: binary(),
+          image_24 :: binary(),
+          image_32 :: binary(),
+          image_48 :: binary(),
+          image_72 :: binary(),
+          image_192 :: binary(),
+          image_512 :: binary(),
+          image_1024 :: binary(),
+          image_original :: binary(),
+          title :: binary(),
+          skype :: binary(),
+          phone :: binary(),
+          avatar_hash :: binary(),
+          status_text :: binary(),
+          status_emoji :: binary(),
+          real_name :: binary(),
+          real_name_normalized :: binary(),
+          email :: binary(),
+          team :: binary()
+}).
+
+-record(slack_rtm_user, {
+          id :: binary(),
+          team_id :: binary(),
+          name :: binary(),
+          deleted :: boolean(),
+          color :: binary(),
+          real_name :: binary(),
+          tz :: binary(),
+          tz_label :: binary(),
+          tz_offset :: integer(),
+          profile :: #slack_rtm_user_profile{},
+          is_admin :: boolean(),
+          is_owner :: boolean(),
+          is_primary_owner :: boolean(),
+          is_restricted :: boolean(),
+          is_ultra_restricted :: boolean(),
+          is_bot :: boolean(),
+          updated :: pos_integer(),
+          is_app_user :: boolean()
+}).
+
+-record(slack_rtm_user_change, {
+          event_ts :: binary(),
+          cache_ts :: binary(),
+          user :: #slack_rtm_user{}
+}).
+
+-record(slack_rtm_unknown_datagram, {
+          type :: binary(),
+          data :: any()
 }).

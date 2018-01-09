@@ -57,6 +57,8 @@ handle_cast(Msg, State) ->
 handle_info({gun_ws, _Gun, Message}, State) ->
     handle_slack_ws_message(State, Message),
     {noreply, State};
+handle_info({gun_up, _Gun, _Proto}, State) ->
+    {noreply, State};
 handle_info({gun_down, Gun, _Proto, Reason, [], []}, State) ->
     lager:info("Gun down (reason: ~p)~n", [Reason]),
     gun:close(Gun),
@@ -216,6 +218,74 @@ parse_slack_subscription(<<"thread">>, Payload) ->
         unread_count=proplists:get_value(<<"unread_count">>, Payload)
     }.
 
+parse_slack_user(Payload) ->
+    #slack_rtm_user{
+          id=proplists:get_value(<<"id">>, Payload),
+          team_id=proplists:get_value(<<"team_id">>, Payload),
+          name=proplists:get_value(<<"name">>, Payload),
+          deleted=proplists:get_value(<<"deleted">>, Payload),
+          color=proplists:get_value(<<"color">>, Payload),
+          real_name=proplists:get_value(<<"real_name">>, Payload),
+          tz=proplists:get_value(<<"tz">>, Payload),
+          tz_label=proplists:get_value(<<"tz_label">>, Payload),
+          tz_offset=proplists:get_value(<<"tz_offset">>, Payload),
+          profile=parse_slack_user_profile(proplists:get_value(<<"profile">>, Payload)),
+          is_admin=proplists:get_value(<<"is_admin">>, Payload),
+          is_owner=proplists:get_value(<<"is_owner">>, Payload),
+          is_primary_owner=proplists:get_value(<<"is_primary_owner">>, Payload),
+          is_restricted=proplists:get_value(<<"is_restricted">>, Payload),
+          is_ultra_restricted=proplists:get_value(<<"is_ultra_restricted">>, Payload),
+          is_bot=proplists:get_value(<<"is_bot">>, Payload),
+          updated=proplists:get_value(<<"updated">>, Payload),
+          is_app_user=proplists:get_value(<<"is_app_user">>, Payload)
+      }.
+
+parse_slack_user_profile(Payload) ->
+    #slack_rtm_user_profile{
+          first_name=proplists:get_value(<<"first_name">>, Payload),
+          last_name=proplists:get_value(<<"last_name">>, Payload),
+          image_24=proplists:get_value(<<"image_24">>, Payload),
+          image_32=proplists:get_value(<<"image_32">>, Payload),
+          image_48=proplists:get_value(<<"image_48">>, Payload),
+          image_72=proplists:get_value(<<"image_72">>, Payload),
+          image_192=proplists:get_value(<<"image_192">>, Payload),
+          image_512=proplists:get_value(<<"image_512">>, Payload),
+          image_1024=proplists:get_value(<<"image_1024">>, Payload),
+          image_original=proplists:get_value(<<"image_original">>, Payload),
+          title=proplists:get_value(<<"title">>, Payload),
+          skype=proplists:get_value(<<"skype">>, Payload),
+          phone=proplists:get_value(<<"phone">>, Payload),
+          avatar_hash=proplists:get_value(<<"avatar_hash">>, Payload),
+          status_text=proplists:get_value(<<"status_text">>, Payload),
+          status_emoji=proplists:get_value(<<"status_emoji">>, Payload),
+          real_name=proplists:get_value(<<"real_name">>, Payload),
+          real_name_normalized=proplists:get_value(<<"real_name_normalized">>, Payload),
+          email=proplists:get_value(<<"email">>, Payload),
+          team=proplists:get_value(<<"team">>, Payload)
+      }.
+
+parse_slack_message_payload([]) ->
+    undefined;
+parse_slack_message_payload(Payload) ->
+    #slack_rtm_message{
+        user=proplists:get_value(<<"user">>, Payload),
+        channel=proplists:get_value(<<"channel">>, Payload),
+        text=proplists:get_value(<<"text">>, Payload),
+        ts=proplists:get_value(<<"ts">>, Payload),
+        event_ts=proplists:get_value(<<"event_ts">>, Payload),
+        deleted_ts=proplists:get_value(<<"deleted_ts">>, Payload),
+        source_team=proplists:get_value(<<"source_team">>, Payload),
+        team=proplists:get_value(<<"team">>, Payload),
+        subtype=proplists:get_value(<<"subtype">>, Payload),
+        bot_id=proplists:get_value(<<"bot_id">>, Payload),
+        attachments=[
+            parse_slack_message_attachment(A) ||
+            A <- proplists:get_value(<<"attachments">>, Payload, [])
+        ],
+        message=parse_slack_message_payload(proplists:get_value(<<"message">>, Payload, [])),
+        previous_message=parse_slack_message_payload(proplists:get_value(<<"previous_message">>, Payload, []))
+    }.
+
 parse_slack_payload(<<"reconnect_url">>, _Payload) ->
     undefined;
 parse_slack_payload(<<"hello">>, _Payload) ->
@@ -231,20 +301,7 @@ parse_slack_payload(<<"presence_change">>, Payload) ->
         presence=Presence
     };
 parse_slack_payload(<<"message">>, Payload) ->
-    #slack_rtm_message{
-        user=proplists:get_value(<<"user">>, Payload),
-        channel=proplists:get_value(<<"channel">>, Payload),
-        text=proplists:get_value(<<"text">>, Payload),
-        ts=proplists:get_value(<<"ts">>, Payload),
-        source_team=proplists:get_value(<<"source_team">>, Payload),
-        team=proplists:get_value(<<"team">>, Payload),
-        subtype=proplists:get_value(<<"subtype">>, Payload),
-        bot_id=proplists:get_value(<<"bot_id">>, Payload),
-        attachments=[
-            parse_slack_message_attachment(A) ||
-            A <- proplists:get_value(<<"attachments">>, Payload, [])
-        ]
-    };
+    parse_slack_message_payload(Payload);
 parse_slack_payload(<<"channel_marked">>, Payload) ->
     #slack_rtm_channel_marked{
         channel=proplists:get_value(<<"channel">>, Payload),
@@ -312,7 +369,6 @@ parse_slack_payload(<<"member_joined_channel">>, Payload) ->
         ts=proplists:get_value(<<"ts">>, Payload),
         event_ts=proplists:get_value(<<"event_ts">>, Payload)
     };
-
 parse_slack_payload(<<"im_marked">>, Payload) ->
     #slack_rtm_im_marked{
         channel=proplists:get_value(<<"channel">>, Payload),
@@ -323,6 +379,15 @@ parse_slack_payload(<<"im_marked">>, Payload) ->
         num_mentions_display=proplists:get_value(<<"num_mentions_display">>, Payload),
         mention_count_display=proplists:get_value(<<"mention_count_display">>, Payload)
     };
+parse_slack_payload(<<"user_change">>, Payload) ->
+    #slack_rtm_user_change{
+        event_ts=proplists:get_value(<<"event_ts">>, Payload),
+        cache_ts=proplists:get_value(<<"cache_ts">>, Payload),
+        user=parse_slack_user(proplists:get_value(<<"user">>, Payload))
+    };
 parse_slack_payload(Type, Payload) ->
     lager:info("Ignoring payload type ~p: ~p ~n", [Type, Payload]),
-    undefined.
+    #slack_rtm_unknown_datagram{
+       type=Type,
+       data=Payload
+    }.
