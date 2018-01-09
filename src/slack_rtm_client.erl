@@ -91,23 +91,53 @@ increase_cooldown(Cooldown) ->
     end.
 
 reconnect_websocket(State=#state{slack_token=Token}) ->
-    {ok, RtmStartJson} = request_rtm_start(Token),
-    case proplists:get_value(<<"ok">>, RtmStartJson) of
-        false ->
-            lager:info("Got bad start json: ~p~n", [RtmStartJson]),
-            Cooldown = State#state.reconnect_cooldown,
-            lager:info("Reconnecting in ~p ms~n", [Cooldown]),
-            reconnect_delayed(Cooldown),
-            {ok, State#state{
-                reconnect_cooldown=increase_cooldown(Cooldown)
-            }};
-        true ->
-            {<<"url">>, WsUrl}  = proplists:lookup(<<"url">>, RtmStartJson),
-            {ok, Gun, _StreamRef} = connect_websocket(WsUrl),
-            {ok, State#state{
-                gun=Gun,
-                reconnect_cooldown=?BASE_RECONNECT_COOLDOWN
-            }}
+    case request_rtm_start(Token) of
+        {error, Reason} ->
+            case Reason of
+                {429, _Msg, Headers} ->
+                    % 429 is ratelimited, check if there's a retry-after param
+                    case proplists:lookup(<<"retry-after">>, Headers) of
+                        {<<"retry-after">>, SecondsBin} ->
+                            Seconds = binary_to_integer(SecondsBin),
+                            Millis = Seconds * 1000,
+                            lager:info("Reconnecting in ~p ms~n", [Millis]),
+                            reconnect_delayed(Millis),
+                            {ok, State#state{reconnect_cooldown=Millis}};
+                        ->
+                            Cooldown = State#state.reconnect_cooldown,
+                            lager:info("Reconnecting in ~p ms~n", [Cooldown]),
+                            reconnect_delayed(Cooldown),
+                            {ok, State#state{
+                                reconnect_cooldown=increase_cooldown(Cooldown)
+                            }}
+                    end;
+                _ ->
+                    % Generic error, just back off
+                    Cooldown = State#state.reconnect_cooldown,
+                    lager:info("Reconnecting in ~p ms~n", [Cooldown]),
+                    reconnect_delayed(Cooldown),
+                    {ok, State#state{
+                        reconnect_cooldown=increase_cooldown(Cooldown)
+                    }}
+            end;
+        {ok, RtmStartJson} ->
+            case proplists:get_value(<<"ok">>, RtmStartJson) of
+                false ->
+                    lager:info("Got bad start json: ~p~n", [RtmStartJson]),
+                    Cooldown = State#state.reconnect_cooldown,
+                    lager:info("Reconnecting in ~p ms~n", [Cooldown]),
+                    reconnect_delayed(Cooldown),
+                    {ok, State#state{
+                        reconnect_cooldown=increase_cooldown(Cooldown)
+                    }};
+                true ->
+                    {<<"url">>, WsUrl}  = proplists:lookup(<<"url">>, RtmStartJson),
+                    {ok, Gun, _StreamRef} = connect_websocket(WsUrl),
+                    {ok, State#state{
+                        gun=Gun,
+                        reconnect_cooldown=?BASE_RECONNECT_COOLDOWN
+                    }}
+            end
     end.
 
 connect_websocket(WsUri) ->
