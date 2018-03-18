@@ -141,12 +141,12 @@ reconnect_websocket(State=#state{slack_token=Token}) ->
     end.
 
 connect_websocket(WsUri) ->
-    {ok, {wss, [], Host, 443, Fragment, []}} = http_uri:parse(
+    {ok, {wss, [], Host, 443, Fragment, Extra}} = http_uri:parse(
         erlang:binary_to_list(WsUri),
         [{scheme_defaults, [{wss, 443}]}]
     ),
     {ok,Pid} = gun:open(Host, 443, #{protocols => [http]}),
-    StreamRef = gun:ws_upgrade(Pid, Fragment),
+    StreamRef = gun:ws_upgrade(Pid, Fragment ++ Extra),
     {ok, Pid, StreamRef}.
 
 %% Send a request to the RTM start API endpoint
