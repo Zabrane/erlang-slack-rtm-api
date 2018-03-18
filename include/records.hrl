@@ -24,6 +24,7 @@
         text :: binary(),
         ts :: binary(),
         event_ts :: binary(),
+        deleted_ts :: binary(),
         source_team :: binary(),
         team :: binary(),
         subtype :: binary(),

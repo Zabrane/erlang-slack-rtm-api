@@ -1,7 +1,7 @@
 -module(slack_rtm_client).
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
--include("include/records.hrl").
+-include_lib("slack_rtm/include/records.hrl").
 
 -define(SLACK_HOST, "slack.com").
 -define(SLACK_RTM_START_URI, <<"/api/rtm.start">>).
