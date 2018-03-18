@@ -103,7 +103,7 @@ reconnect_websocket(State=#state{slack_token=Token}) ->
                             lager:info("Reconnecting in ~p ms~n", [Millis]),
                             reconnect_delayed(Millis),
                             {ok, State#state{reconnect_cooldown=Millis}};
-                        ->
+                        _ ->
                             Cooldown = State#state.reconnect_cooldown,
                             lager:info("Reconnecting in ~p ms~n", [Cooldown]),
                             reconnect_delayed(Cooldown),
