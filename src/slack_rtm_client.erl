@@ -131,8 +131,14 @@ reconnect_websocket(State=#state{slack_token=Token}) ->
                         reconnect_cooldown=increase_cooldown(Cooldown)
                     }};
                 true ->
+                    % Connect the websocket
                     {<<"url">>, WsUrl}  = proplists:lookup(<<"url">>, RtmStartJson),
                     {ok, Gun, _StreamRef} = connect_websocket(WsUrl),
+
+                    % Send our ID to the callback
+                    {<<"self">>, SelfData} = proplists:lookup(<<"self">>, RtmStartJson),
+                    {<<"id">>, SelfId} = proplists:lookup(<<"id">>, SelfData),
+                    State#state.callback ! {slack_connected, self(), SelfId},
                     {ok, State#state{
                         gun=Gun,
                         reconnect_cooldown=?BASE_RECONNECT_COOLDOWN
