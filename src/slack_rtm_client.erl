@@ -10,7 +10,7 @@
 -define(MAX_RECONNECT_COOLDOWN, 60000).
 
 %% Supervisor callback
--export([start_link/2]).
+-export([start_link/2, start_link/3]).
 
 %% gen_server callbacks
 -export([init/1,
