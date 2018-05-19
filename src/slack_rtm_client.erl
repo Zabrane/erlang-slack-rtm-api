@@ -24,21 +24,25 @@
     slack_token :: binary(),
     callback :: pid(),
     reconnect_cooldown :: pos_integer(),
+    mode=record :: raw | record,
     gun :: any()
 }).
 
 start_link(Callback, SlackToken) ->
-    gen_server:start_link(?MODULE, [Callback, SlackToken], []).
+    start_link(Callback, SlackToken, record).
+
+start_link(Callback, SlackToken, Mode) ->
+    gen_server:start_link(?MODULE, [Callback, SlackToken, Mode], []).
 
 % Gen server callbacks
 
-init([Callback, SlackToken]) ->
+init([Callback, SlackToken, Mode]) ->
     State = #state{
        slack_token=SlackToken,
        callback=Callback,
+       mode=Mode,
        reconnect_cooldown=?BASE_RECONNECT_COOLDOWN
     },
-    lager:info("Started archivist with token ~p~n", [SlackToken]),
     gen_server:cast(self(), reconnect),
     {ok, State}.
 
@@ -183,7 +187,10 @@ request_rtm_start(Token) ->
 %% Decode a JSON payload from slack, then call the appropriate handler
 handle_slack_ws_message(State, {text, Json}) ->
     WsPayload = jsx:decode(Json),
-    SlackRecord = parse_slack_payload(proplists:get_value(<<"type">>, WsPayload), WsPayload),
+    SlackRecord = case State#state.mode of
+        record -> parse_slack_payload(proplists:get_value(<<"type">>, WsPayload), WsPayload);
+        raw -> WsPayload
+    end,
     case SlackRecord of
         undefined -> ok;
         _ ->
