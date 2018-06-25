@@ -3,13 +3,11 @@
 -behaviour(gen_server).
 -include_lib("slack_rtm/include/records.hrl").
 
--define(SLACK_RTM_START_URI, "https://slack.com/api/rtm.start").
-
 -define(BASE_RECONNECT_COOLDOWN, 1000).
 -define(MAX_RECONNECT_COOLDOWN, 60000).
 
 %% Supervisor callback
--export([start_link/2, start_link/3]).
+-export([start_link/3, start_link/4]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -20,23 +18,25 @@
          code_change/3]).
 
 -record(state, {
-    slack_token :: binary(),
+    rtm_start_url :: string(),
+    slack_token :: string(),
     callback :: pid(),
     reconnect_cooldown :: pos_integer(),
     mode=record :: raw | record,
     ws_pid :: pid()
 }).
 
-start_link(Callback, SlackToken) ->
-    start_link(Callback, SlackToken, record).
+start_link(Callback, Url, SlackToken) ->
+    start_link(Callback, Url, SlackToken, record).
 
-start_link(Callback, SlackToken, Mode) ->
-    gen_server:start_link(?MODULE, [Callback, SlackToken, Mode], []).
+start_link(Callback, Url, SlackToken, Mode) ->
+    gen_server:start_link(?MODULE, [Callback, Url, SlackToken, Mode], []).
 
 % Gen server callbacks
 
-init([Callback, SlackToken, Mode]) ->
+init([Callback, Url, SlackToken, Mode]) ->
     State = #state{
+       rtm_start_url=Url,
        slack_token=SlackToken,
        callback=Callback,
        mode=Mode,
@@ -95,8 +95,8 @@ increase_cooldown(Cooldown) ->
         false -> NewCooldown
     end.
 
-reconnect_websocket(State=#state{slack_token=Token}) ->
-    case request_rtm_start(Token) of
+reconnect_websocket(State) ->
+    case request_rtm_start(State) of
         {error, Reason} ->
             case Reason of
                 {429, _Msg, Headers} ->
@@ -153,8 +153,8 @@ reconnect_websocket(State=#state{slack_token=Token}) ->
     end.
 
 %% Send a request to the RTM start API endpoint
-request_rtm_start(Token) ->
-    Url = ?SLACK_RTM_START_URI ++ "?token=" ++ binary_to_list(Token),
+request_rtm_start(State) ->
+    Url = State#state.rtm_start_url ++ "?token=" ++ State#state.slack_token,
     case httpc:request(get, {Url, []}, [], [{body_format, binary}]) of
         {error, Reason} ->
             {error, Reason};
