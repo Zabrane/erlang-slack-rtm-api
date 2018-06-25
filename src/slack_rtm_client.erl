@@ -159,7 +159,9 @@ request_rtm_start(State) ->
         {error, Reason} ->
             {error, Reason};
         {ok, {{_, 200, _}, _, Body}} ->
-            {ok, jsx:decode(Body)}
+            {ok, jsx:decode(Body)};
+        {ok, {{_, Code, _}, _, Body}} ->
+            {error, {server_error, Code, Body}}
     end.
 
 %% Decode a JSON payload from slack, then call the appropriate handler
