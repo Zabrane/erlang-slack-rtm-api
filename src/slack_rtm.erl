@@ -6,10 +6,13 @@
 -spec connect(binary() | list()) -> {ok, pid()} | {error, any()}.
 connect(Token) ->
     connect(Token, record).
+
 connect(Token, Mode) when is_list(Token) ->
-    connect(list_to_binary(Token));
+    connect(list_to_binary(Token), Mode);
 connect(Token, Mode) when is_binary(Token) ->
-    supervisor:start_child(slack_rtm_sup, [self(), Token, Mode]).
+    {ok, Pid} = supervisor:start_child(slack_rtm_sup, [self(), Token, Mode]),
+    true = link(Pid),
+    {ok, Pid}.
 
 printer_loop(Token) ->
     {ok, _} = connect(Token),

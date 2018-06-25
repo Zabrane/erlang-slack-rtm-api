@@ -3,8 +3,7 @@
 -behaviour(gen_server).
 -include_lib("slack_rtm/include/records.hrl").
 
--define(SLACK_HOST, "slack.com").
--define(SLACK_RTM_START_URI, <<"/api/rtm.start">>).
+-define(SLACK_RTM_START_URI, "https://slack.com/api/rtm.start").
 
 -define(BASE_RECONNECT_COOLDOWN, 1000).
 -define(MAX_RECONNECT_COOLDOWN, 60000).
@@ -25,7 +24,7 @@
     callback :: pid(),
     reconnect_cooldown :: pos_integer(),
     mode=record :: raw | record,
-    gun :: any()
+    ws_pid :: pid()
 }).
 
 start_link(Callback, SlackToken) ->
@@ -58,17 +57,19 @@ handle_cast(Msg, State) ->
     lager:info("Unexpected cast ~p~n", [Msg]),
     {noreply, State}.
 
-handle_info({gun_ws, _Gun, Message}, State) ->
+handle_info({ws_message, _Pid, Message}, State) ->
     handle_slack_ws_message(State, Message),
     {noreply, State};
-handle_info({gun_up, _Gun, _Proto}, State) ->
+handle_info({ws_connected, Pid}, State) ->
+    lager:info("Websocket connection up: ~p", [Pid]),
     {noreply, State};
-handle_info({gun_down, Gun, _Proto, Reason, [], []}, State) ->
-    lager:info("Gun down (reason: ~p)~n", [Reason]),
-    gun:close(Gun),
-    gen_server:cast(self(), reconnect),
-    {noreply, State};
-handle_info({gun_ws_upgrade, _Gun, ok, _Headers}, State) ->
+handle_info({ws_down, Pid, Reason}, State) ->
+    lager:info("WS ~p down (reason: ~p)~n", [Pid, Reason]),
+    % If this was the connection we were relying on, reconnect it
+    case Pid =:= State#state.ws_pid of
+        false -> ok;
+        true -> gen_server:cast(self(), reconnect)
+    end,
     {noreply, State};
 handle_info(Info, State) ->
     lager:info("Unexpected info ~p~n", [Info]),
@@ -137,55 +138,32 @@ reconnect_websocket(State=#state{slack_token=Token}) ->
                 true ->
                     % Connect the websocket
                     {<<"url">>, WsUrl}  = proplists:lookup(<<"url">>, RtmStartJson),
-                    {ok, Gun, _StreamRef} = connect_websocket(WsUrl),
+                    {ok, WsPid} = websocket_client:start_link(WsUrl, slack_rtm_ws_handler, [self()]),
+                    lager:info("Connected new websocket pid ~p", [WsPid]),
 
                     % Send our ID to the callback
                     {<<"self">>, SelfData} = proplists:lookup(<<"self">>, RtmStartJson),
                     {<<"id">>, SelfId} = proplists:lookup(<<"id">>, SelfData),
                     State#state.callback ! {slack_connected, self(), SelfId},
                     {ok, State#state{
-                        gun=Gun,
-                        reconnect_cooldown=?BASE_RECONNECT_COOLDOWN
+                        reconnect_cooldown=?BASE_RECONNECT_COOLDOWN,
+                        ws_pid=WsPid
                     }}
             end
     end.
 
-connect_websocket(WsUri) ->
-    {ok, {wss, [], Host, 443, Fragment, Extra}} = http_uri:parse(
-        erlang:binary_to_list(WsUri),
-        [{scheme_defaults, [{wss, 443}]}]
-    ),
-    {ok,Pid} = gun:open(Host, 443, #{protocols => [http]}),
-    StreamRef = gun:ws_upgrade(Pid, Fragment ++ Extra),
-    {ok, Pid, StreamRef}.
-
 %% Send a request to the RTM start API endpoint
 request_rtm_start(Token) ->
-    {ok, Gun} = gun:open(?SLACK_HOST, 443, #{protocols => [http]}),
-    Path = <<?SLACK_RTM_START_URI/binary, "?token=", Token/binary>>,
-    StreamRef = gun:get(Gun, Path),
-    Result = case gun:await(Gun, StreamRef) of
-          {response, fin, _Status, _ResponseHeaders} ->
-            {error, no_websocket};
-          {response, nofin, Status, ResponseHeaders} ->
-              {ok, ResponseBody} = gun:await_body(Gun, StreamRef),
-              case Status of
-                  200 ->
-                      JsonBody = jsx:decode(ResponseBody),
-                      {ok, JsonBody};
-                  _ ->
-                      {error, {Status, ResponseBody, ResponseHeaders}}
-              end;
-          {error, timeout} ->
-                {error, timeout};
-          Anything ->
-              {error, Anything}
-             end,
-    gun:shutdown(Gun),
-    Result.
+    Url = ?SLACK_RTM_START_URI ++ "?token=" ++ binary_to_list(Token),
+    case httpc:request(get, {Url, []}, [], [{body_format, binary}]) of
+        {error, Reason} ->
+            {error, Reason};
+        {ok, {{_, 200, _}, _, Body}} ->
+            {ok, jsx:decode(Body)}
+    end.
 
 %% Decode a JSON payload from slack, then call the appropriate handler
-handle_slack_ws_message(State, {text, Json}) ->
+handle_slack_ws_message(State, Json) ->
     WsPayload = jsx:decode(Json),
     SlackRecord = case State#state.mode of
         record -> parse_slack_payload(proplists:get_value(<<"type">>, WsPayload), WsPayload);

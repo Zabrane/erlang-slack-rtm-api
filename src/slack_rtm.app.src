@@ -8,7 +8,7 @@
                   stdlib,
                   sasl,
                   jsx,
-                  gun,
+                  websocket_client,
                   lager
                  ]},
   {mod, { slack_rtm_app, []}},
