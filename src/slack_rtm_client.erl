@@ -42,6 +42,8 @@ init([Callback, Url, SlackToken, Mode]) ->
        mode=Mode,
        reconnect_cooldown=?BASE_RECONNECT_COOLDOWN
     },
+    % Trap exits from the websocket pid
+    process_flag(trap_exit, true),
     gen_server:cast(self(), reconnect),
     {ok, State}.
 
@@ -57,6 +59,12 @@ handle_cast(Msg, State) ->
     lager:info("Unexpected cast ~p~n", [Msg]),
     {noreply, State}.
 
+handle_info({'EXIT', Pid, Reason}, State) ->
+    case Pid =:= State#state.ws_pid of
+        false -> lager:warning("Unexpected EXIT of type '~p' from pid ~p", [Reason, Pid]);
+        true -> lager:info("Websocket client pid ~p exited with reason ~p", [Pid, Reason])
+    end,
+    {noreply, State};
 handle_info({ws_message, _Pid, Message}, State) ->
     handle_slack_ws_message(State, Message),
     {noreply, State};
