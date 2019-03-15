@@ -421,7 +421,7 @@ parse_slack_payload(<<"user_change">>, Payload) ->
         user=parse_slack_user(proplists:get_value(<<"user">>, Payload))
     };
 parse_slack_payload(Type, Payload) ->
-    lager:info("Ignoring payload type ~p: ~p ~n", [Type, Payload]),
+    % lager:info("Ignoring payload type ~p: ~p ~n", [Type, Payload]),
     #slack_rtm_unknown_datagram{
        type=Type,
        data=Payload
