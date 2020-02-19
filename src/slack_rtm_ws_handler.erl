@@ -34,6 +34,7 @@ websocket_info(Info, _ConnState, State) ->
     {ok, State}.
 
 websocket_terminate(Reason, _ConnState, State) ->
+    lager:info("[WS ~p] terminate: ~p", [self(), Reason]),
     handle_disconnect(State, Reason),
     ok.
 

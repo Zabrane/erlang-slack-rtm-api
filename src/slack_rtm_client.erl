@@ -48,7 +48,7 @@ init([Callback, Url, SlackToken, Mode]) ->
     {ok, State}.
 
 handle_call(Request, _From, State) ->
-    lager:info("Unexpected call ~p~n", [Request]),
+    lager:info("[~p] Unexpected call ~p~n", [self(), Request]),
     {noreply, State}.
 
 handle_cast(reconnect, State) ->
@@ -56,23 +56,23 @@ handle_cast(reconnect, State) ->
     {ok, State1} = reconnect_websocket(State),
     {noreply, State1};
 handle_cast(Msg, State) ->
-    lager:info("Unexpected cast ~p~n", [Msg]),
+    lager:info("[~p] Unexpected cast ~p~n", [self(), Msg]),
     {noreply, State}.
 
 handle_info({'EXIT', Pid, Reason}, State) ->
     case Pid =:= State#state.ws_pid of
-        false -> lager:warning("Unexpected EXIT of type '~p' from pid ~p", [Reason, Pid]);
-        true -> lager:info("Websocket client pid ~p exited with reason ~p", [Pid, Reason])
+        false -> lager:warning("[~p] Unexpected EXIT of type '~p' from pid ~p", [self(), Reason, Pid]);
+        true -> lager:info("[~p] Websocket client pid ~p exited with reason ~p", [self(), Pid, Reason])
     end,
     {noreply, State};
 handle_info({ws_message, _Pid, Message}, State) ->
     handle_slack_ws_message(State, Message),
     {noreply, State};
 handle_info({ws_connected, Pid}, State) ->
-    lager:info("Websocket connection up: ~p", [Pid]),
+    lager:info("[~p] Websocket connection up: ~p", [self(), Pid]),
     {noreply, State};
 handle_info({ws_down, Pid, Reason}, State) ->
-    lager:info("WS ~p down (reason: ~p)~n", [Pid, Reason]),
+    lager:info("[~p] WS ~p down (reason: ~p)~n", [self(), Pid, Reason]),
     % If this was the connection we were relying on, reconnect it
     case Pid =:= State#state.ws_pid of
         false -> ok;
@@ -80,14 +80,14 @@ handle_info({ws_down, Pid, Reason}, State) ->
     end,
     {noreply, State};
 handle_info(Info, State) ->
-    lager:info("Unexpected info ~p~n", [Info]),
+    lager:info("[~p] Unexpected info ~p~n", [self(), Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
     ok.
 
 code_change(OldVsn, State, _Extra) ->
-    lager:info("~p updated from vsn ~p", [?MODULE, OldVsn]),
+    lager:info("[~p] ~p updated from vsn ~p", [self(), ?MODULE, OldVsn]),
     {ok, State}.
 
 % Internal logic
@@ -113,12 +113,12 @@ reconnect_websocket(State) ->
                         {<<"retry-after">>, SecondsBin} ->
                             Seconds = binary_to_integer(SecondsBin),
                             Millis = Seconds * 1000,
-                            lager:info("Reconnecting in ~p ms~n", [Millis]),
+                            lager:info("[~p] Reconnecting in ~p ms~n", [self(), Millis]),
                             reconnect_delayed(Millis),
                             {ok, State#state{reconnect_cooldown=Millis}};
                         _ ->
                             Cooldown = State#state.reconnect_cooldown,
-                            lager:info("Reconnecting in ~p ms~n", [Cooldown]),
+                            lager:info("[~p] Reconnecting in ~p ms~n", [self(), Cooldown]),
                             reconnect_delayed(Cooldown),
                             {ok, State#state{
                                 reconnect_cooldown=increase_cooldown(Cooldown)
@@ -127,7 +127,7 @@ reconnect_websocket(State) ->
                 _ ->
                     % Generic error, just back off
                     Cooldown = State#state.reconnect_cooldown,
-                    lager:info("Reconnecting in ~p ms~n", [Cooldown]),
+                    lager:info("[~p] Reconnecting in ~p ms~n", [self(), Cooldown]),
                     reconnect_delayed(Cooldown),
                     {ok, State#state{
                         reconnect_cooldown=increase_cooldown(Cooldown)
@@ -136,9 +136,9 @@ reconnect_websocket(State) ->
         {ok, RtmStartJson} ->
             case proplists:get_value(<<"ok">>, RtmStartJson) of
                 false ->
-                    lager:info("Got bad start json: ~p~n", [RtmStartJson]),
+                    lager:info("[~p] Got bad start json: ~p~n", [self(), RtmStartJson]),
                     Cooldown = State#state.reconnect_cooldown,
-                    lager:info("Reconnecting in ~p ms~n", [Cooldown]),
+                    lager:info("[~p] Reconnecting in ~p ms~n", [self(), Cooldown]),
                     reconnect_delayed(Cooldown),
                     {ok, State#state{
                         reconnect_cooldown=increase_cooldown(Cooldown)
@@ -147,7 +147,7 @@ reconnect_websocket(State) ->
                     % Connect the websocket
                     {<<"url">>, WsUrl}  = proplists:lookup(<<"url">>, RtmStartJson),
                     {ok, WsPid} = websocket_client:start_link(WsUrl, slack_rtm_ws_handler, [self()]),
-                    lager:info("Connected new websocket pid ~p", [WsPid]),
+                    lager:info("[~p] Connected new websocket pid ~p", [self(), WsPid]),
 
                     % Send our ID to the callback
                     {<<"self">>, SelfData} = proplists:lookup(<<"self">>, RtmStartJson),
