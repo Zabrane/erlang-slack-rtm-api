@@ -4,7 +4,7 @@
 -include_lib("slack_rtm/include/records.hrl").
 
 -define(BASE_RECONNECT_COOLDOWN, 1000).
--define(MAX_RECONNECT_COOLDOWN, 60000).
+-define(MAX_RECONNECT_COOLDOWN, 300000).
 
 %% Supervisor callback
 -export([start_link/3, start_link/4]).
